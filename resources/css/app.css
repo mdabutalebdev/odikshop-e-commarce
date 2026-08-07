@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans', 'Hind Siliguri', ui-sans-serif, system-ui, sans-serif;
+
+    /* Brand palette — matches the ODHIK SHOP design tokens */
+    --color-brand: #008060;
+    --color-brand-dark: #007759;
+    --color-brand-light: #e6f2f0;
+    --color-ink: #1f2937;
+    --color-muted: #6b7280;
+    --color-line: #e5e7eb;
+    --color-canvas: #f5f6f8;
+    --color-sale: #ef4444;
+
+    --radius-card: 12px;
+
+    --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+@layer base {
+    body {
+        background-color: var(--color-canvas);
+        color: var(--color-ink);
+        -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+@layer components {
+    /* Centered content width used across header / footer / sections */
+    .container-x {
+        width: 100%;
+        max-width: 1280px;
+        margin-inline: auto;
+        padding-inline: 12px;
+    }
+
+    /* Primary button */
+    .btn-brand {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background-color: var(--color-brand);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: background-color 0.15s ease;
+    }
+
+    .btn-brand:hover {
+        background-color: var(--color-brand-dark);
+    }
+}
+
+/* Alpine cloak */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Hide scrollbar on horizontal product sliders */
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Line clamp helpers */
+.clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

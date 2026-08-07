@@ -1,0 +1,26 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class ContactController extends Controller
+{
+    public function index()
+    {
+        return view('contact');
+    }
+
+    public function submit(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string|max:20',
+            'message' => 'required|string|max:2000',
+        ]);
+
+        // In a real deployment this would notify the store owner.
+        return back()->with('success', 'আপনার বার্তা পাঠানো হয়েছে। আমরা শীঘ্রই যোগাযোগ করব।');
+    }
+}
