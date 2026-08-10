@@ -8,7 +8,8 @@ class Category extends Model
 {
     protected $fillable = [
         'parent_id',
-        'name',
+        'name_en',
+        'name_bn',
         'slug',
         'image',
         'icon',
@@ -23,7 +24,24 @@ class Category extends Model
         return [
             'is_active' => 'boolean',
             'show_in_nav' => 'boolean',
+            'show_on_home' => 'boolean',
         ];
+    }
+
+    /**
+     * Locale-aware display name. The `name` column was split into
+     * `name_en` / `name_bn`; this keeps every `$category->name` reference
+     * (nav, footer, breadcrumbs, admin lists) working, and falls back to
+     * the other language when one side is empty.
+     */
+    public function getNameAttribute(): string
+    {
+        $bn = $this->attributes['name_bn'] ?? null;
+        $en = $this->attributes['name_en'] ?? null;
+
+        return app()->getLocale() === 'bn'
+            ? (string) ($bn ?: $en)
+            : (string) ($en ?: $bn);
     }
 
     public function parent()

@@ -8,7 +8,7 @@
          class="absolute inset-y-0 right-0 w-96 max-w-[90%] bg-white flex flex-col shadow-2xl">
 
         <div class="bg-brand text-white p-4 flex items-center justify-between">
-            <span class="font-bold flex items-center gap-2"><i class="fa-solid fa-cart-shopping"></i>আপনার শপিং কার্ট</span>
+            <span class="font-bold flex items-center gap-2"><i class="fa-solid fa-cart-shopping"></i>Your Shopping Cart</span>
             <button @click="cartOpen = false" class="text-2xl"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
@@ -18,10 +18,10 @@
 
         <div class="border-t border-line p-4 space-y-3">
             <div class="flex items-center justify-between font-bold">
-                <span class="text-muted font-medium">মোট মূল্য:</span>
+                <span class="text-muted font-medium">Total:</span>
                 <span class="text-brand text-lg">{{ bdt(app(\App\Services\Cart::class)->subtotal()) }}</span>
             </div>
-            <a href="{{ route('checkout.index') }}" class="btn-brand w-full h-11">অর্ডার সম্পন্ন করুন <i class="fa-solid fa-arrow-right ml-1"></i></a>
+            <a href="{{ route('checkout.index') }}" class="btn-accent w-full h-11">Checkout <i class="fa-solid fa-arrow-right ml-1"></i></a>
         </div>
     </div>
 </div>

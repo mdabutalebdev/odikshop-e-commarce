@@ -15,12 +15,9 @@ class SetLocale
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (session()->has('locale')) {
-            app()->setLocale(session('locale'));
-        } else {
-            app()->setLocale('bn'); // Default to Bangla
-        }
-        
+        // Storefront is English-only.
+        app()->setLocale('en');
+
         return $next($request);
     }
 }

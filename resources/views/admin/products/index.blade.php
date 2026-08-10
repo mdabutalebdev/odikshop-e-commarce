@@ -37,9 +37,11 @@
                             <td class="px-4 py-3">{{ $product->stock }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-1">
-                                    @if($product->is_flash_sale)<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sale/10 text-sale">ফ্ল্যাশ</span>@endif
-                                    @if($product->is_popular)<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">জনপ্রিয়</span>@endif
-                                    @if(!$product->is_active)<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">নিষ্ক্রিয়</span>@endif
+                                    @if($product->is_flash_sale)<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sale/10 text-sale">Flash</span>@endif
+                                    @if($product->is_featured)<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Featured</span>@endif
+                                    @if($product->is_best_seller)<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-accent/10 text-accent">Best</span>@endif
+                                    @if($product->is_new_arrival)<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-light text-brand">New</span>@endif
+                                    @if(!$product->is_active)<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">Inactive</span>@endif
                                 </div>
                             </td>
                             <td class="px-4 py-3">

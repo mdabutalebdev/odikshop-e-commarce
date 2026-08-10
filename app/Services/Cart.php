@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Fluent;
 
 class Cart
 {
@@ -79,15 +80,37 @@ class Cart
             if (!$product) {
                 return null;
             }
-            
-            return (object) [
+
+            // Fluent supports BOTH array access ($item['product'], used by the
+            // cart/checkout blades) and object access ($item->product, used by
+            // CheckoutController) — so one shape satisfies every consumer.
+            return new Fluent([
+                'key' => $item['id'],
                 'id' => $item['id'],
                 'product' => $product,
                 'quantity' => $item['quantity'],
-                'options' => $item['options'],
+                'options' => $item['options'] ?? [],
                 'subtotal' => $product->price * $item['quantity'],
-            ];
+            ]);
         })->filter();
+    }
+
+    /**
+     * Build a single cart-item shape (same Fluent contract as items()) for the
+     * "buy now" checkout flow, without touching the session cart.
+     */
+    public function makeItem(Product $product, int $quantity = 1, array $options = []): Fluent
+    {
+        $quantity = max(1, $quantity);
+
+        return new Fluent([
+            'key' => $product->id.'_buynow',
+            'id' => $product->id.'_buynow',
+            'product' => $product,
+            'quantity' => $quantity,
+            'options' => $options,
+            'subtotal' => $product->price * $quantity,
+        ]);
     }
 
     public function count(): int

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
@@ -26,10 +25,10 @@ class ProductController extends Controller
 
     public function create()
     {
-        $categoryGroups = $this->categoryGroups();
-        $brands = $this->brands();
+        $product = new Product();
+        $categories = $this->categoryList();
 
-        return view('admin.products.create', compact('categoryGroups', 'brands'));
+        return view('admin.products.create', compact('product', 'categories'));
     }
 
     public function store(Request $request)
@@ -39,8 +38,11 @@ class ProductController extends Controller
 
         if ($request->hasFile('main_image')) {
             $data['main_image'] = $request->file('main_image')->store('products', 'public');
+        } elseif ($request->filled('image_url')) {
+            $data['main_image'] = trim($request->input('image_url'));
         }
-        
+        unset($data['image_url']);
+
         if (isset($data['attributes']) && is_string($data['attributes'])) {
             $data['attributes'] = json_decode($data['attributes'], true);
         }
@@ -59,11 +61,10 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
-        $categoryGroups = $this->categoryGroups();
-        $brands = $this->brands();
+        $categories = $this->categoryList();
         $product->load('images');
 
-        return view('admin.products.edit', compact('product', 'categoryGroups', 'brands'));
+        return view('admin.products.edit', compact('product', 'categories'));
     }
 
     public function update(Request $request, Product $product)
@@ -75,8 +76,11 @@ class ProductController extends Controller
                 Storage::disk('public')->delete($product->main_image);
             }
             $data['main_image'] = $request->file('main_image')->store('products', 'public');
+        } elseif ($request->filled('image_url')) {
+            $data['main_image'] = trim($request->input('image_url'));
         }
-        
+        unset($data['image_url']);
+
         if (isset($data['attributes']) && is_string($data['attributes'])) {
             $data['attributes'] = json_decode($data['attributes'], true);
         }
@@ -95,8 +99,8 @@ class ProductController extends Controller
         }
 
         foreach ($product->images as $image) {
-            if (! str_starts_with($image->image, 'http')) {
-                Storage::disk('public')->delete($image->image);
+            if ($image->path && ! str_starts_with($image->path, 'http')) {
+                Storage::disk('public')->delete($image->path);
             }
         }
 
@@ -109,8 +113,8 @@ class ProductController extends Controller
     {
         abort_if($image->product_id !== $product->id, 404);
 
-        if (! str_starts_with($image->image, 'http')) {
-            Storage::disk('public')->delete($image->image);
+        if ($image->path && ! str_starts_with($image->path, 'http')) {
+            Storage::disk('public')->delete($image->path);
         }
 
         $image->delete();
@@ -118,14 +122,20 @@ class ProductController extends Controller
         return back()->with('status', 'Image removed.');
     }
 
-    private function categoryGroups()
+    public function uploadEditorImage(Request $request)
     {
-        return Category::topLevel()->with('children')->orderBy('sort_order')->get();
+        $request->validate([
+            'file' => ['required', 'image', 'max:4096'],
+        ]);
+
+        $path = $request->file('file')->store('editor', 'public');
+
+        return response()->json(['location' => '/storage/'.$path]);
     }
 
-    private function brands()
+    private function categoryList()
     {
-        return Brand::orderBy('name')->get();
+        return Category::orderBy('sort_order')->orderBy('name_en')->get();
     }
 
     private function storeImages(Request $request, Product $product): void
@@ -138,7 +148,7 @@ class ProductController extends Controller
 
         foreach ($request->file('images') as $index => $file) {
             $product->images()->create([
-                'image' => $file->store('products', 'public'),
+                'path' => $file->store('products', 'public'),
                 'sort_order' => $startOrder + $index,
             ]);
         }
@@ -158,17 +168,19 @@ class ProductController extends Controller
             'sku' => ['nullable', 'string', 'max:100'],
             'rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
             'reviews_count' => ['nullable', 'integer', 'min:0'],
+            'is_flash_sale' => ['sometimes', 'boolean'],
             'is_featured' => ['sometimes', 'boolean'],
             'is_best_seller' => ['sometimes', 'boolean'],
             'is_new_arrival' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
             'main_image' => ['nullable', 'image', 'max:2048'],
+            'image_url' => ['nullable', 'string', 'max:2048'],
             'attributes' => ['nullable'],
             'images' => ['nullable', 'array'],
             'images.*' => ['file', 'mimes:jpeg,jpg,png,webp,gif,mp4,mov,webm,ogv,ogg,m4v,avi,mkv,3gp', 'max:20480'],
         ]);
 
-        foreach (['is_featured', 'is_best_seller', 'is_new_arrival', 'is_active'] as $flag) {
+        foreach (['is_flash_sale', 'is_featured', 'is_best_seller', 'is_new_arrival', 'is_active'] as $flag) {
             $data[$flag] = $request->boolean($flag);
         }
 

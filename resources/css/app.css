@@ -6,12 +6,21 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Plus Jakarta Sans', 'Hind Siliguri', ui-sans-serif, system-ui, sans-serif;
+    /* Bengali-safe stack: if the Google web-fonts (Hind Siliguri) fail to load,
+       fall through to the OS Bengali fonts (Nirmala UI on Windows, Noto Sans
+       Bengali elsewhere) BEFORE the generic sans-serif — otherwise Windows maps
+       sans-serif to Segoe UI, which has no Bengali glyphs and renders "????". */
+    --font-sans: 'Plus Jakarta Sans', 'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', ui-sans-serif, system-ui, sans-serif;
 
-    /* Brand palette — matches the ODHIK SHOP design tokens */
-    --color-brand: #008060;
-    --color-brand-dark: #007759;
-    --color-brand-light: #e6f2f0;
+    /* Brand palette — sampled from the odhikshop logo (teal "odhik" + orange "shop") */
+    --color-brand: #0e9495;         /* teal — primary UI, header, links, prices */
+    --color-brand-dark: #0b7778;    /* darker teal — nav bar, hovers */
+    --color-brand-light: #e3f3f3;   /* teal tint — soft backgrounds */
+
+    --color-accent: #fc5208;        /* orange — CTAs (Order Now), highlights */
+    --color-accent-dark: #e04704;
+    --color-accent-light: #fff0e7;
+
     --color-ink: #1f2937;
     --color-muted: #6b7280;
     --color-line: #e5e7eb;
@@ -25,6 +34,15 @@
 }
 
 @layer base {
+    /* 🔒 Zero horizontal overflow on mobile — matches the reference build.
+       overflow-x: clip (not hidden) avoids turning <body> into a scroll
+       container, so sticky header/sidebars keep working. */
+    html,
+    body {
+        max-width: 100%;
+        overflow-x: clip;
+    }
+
     body {
         background-color: var(--color-canvas);
         color: var(--color-ink);
@@ -33,6 +51,13 @@
 
     a {
         -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Media never forces the layout wider than its column */
+    img,
+    video,
+    svg {
+        max-width: 100%;
     }
 }
 
@@ -45,7 +70,7 @@
         padding-inline: 12px;
     }
 
-    /* Primary button */
+    /* Primary button (teal) */
     .btn-brand {
         display: inline-flex;
         align-items: center;
@@ -61,6 +86,31 @@
     .btn-brand:hover {
         background-color: var(--color-brand-dark);
     }
+
+    /* Accent button (orange) — main storefront CTAs like "Order Now" */
+    .btn-accent {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background-color: var(--color-accent);
+        color: #fff;
+        font-weight: 700;
+        border-radius: 8px;
+        transition: background-color 0.15s ease;
+    }
+
+    .btn-accent:hover {
+        background-color: var(--color-accent-dark);
+    }
+}
+
+/* ===== Auto-sliding carousels (hero + product rows + reviews) ===== */
+.snap-x {
+    scroll-snap-type: x mandatory;
+}
+.snap-start {
+    scroll-snap-align: start;
 }
 
 /* Alpine cloak */
@@ -83,4 +133,53 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+/* ===== Dual-handle price range slider ===== */
+.range-track {
+    position: relative;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-line);
+}
+.range-fill {
+    position: absolute;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--color-accent);
+}
+.range-track input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 0;
+    width: 100%;
+    height: 4px;
+    margin: 0;
+    background: none;
+    pointer-events: none;
+}
+.range-track input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+}
+.range-track input[type='range']::-moz-range-thumb {
+    pointer-events: auto;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: var(--color-accent);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
 }

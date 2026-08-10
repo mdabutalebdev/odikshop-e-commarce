@@ -21,10 +21,12 @@ class Product extends Model
         'rating',
         'reviews_count',
         'is_featured',
+        'is_flash_sale',
+        'is_popular',
         'is_best_seller',
         'is_new_arrival',
-        'is_top_selling',
-        'top_selling_order',
+        'top_selling',
+        'sort_order',
         'is_active',
         'attributes',
     ];
@@ -36,9 +38,11 @@ class Product extends Model
             'old_price' => 'decimal:2',
             'rating' => 'decimal:1',
             'is_featured' => 'boolean',
+            'is_flash_sale' => 'boolean',
+            'is_popular' => 'boolean',
             'is_best_seller' => 'boolean',
             'is_new_arrival' => 'boolean',
-            'is_top_selling' => 'boolean',
+            'top_selling' => 'boolean',
             'is_active' => 'boolean',
             'attributes' => 'array',
         ];
@@ -64,9 +68,19 @@ class Product extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function reviews()
+    {
+        return $this->hasMany(ProductReview::class)->latest();
+    }
+
+    public function approvedReviews()
+    {
+        return $this->hasMany(ProductReview::class)->where('status', 'approved')->latest();
+    }
+
     public function getMainImageAttribute($value)
     {
-        return $value ?? $this->images->first()?->image;
+        return $value ?? $this->images->first()?->path;
     }
 
     public function getDiscountPercentAttribute(): ?int
@@ -88,6 +102,16 @@ class Product extends Model
         return $query->where('is_featured', true);
     }
 
+    public function scopeFlashSale($query)
+    {
+        return $query->where('is_flash_sale', true);
+    }
+
+    public function scopePopular($query)
+    {
+        return $query->where('is_popular', true);
+    }
+
     public function scopeBestSeller($query)
     {
         return $query->where('is_best_seller', true);
@@ -100,6 +124,6 @@ class Product extends Model
 
     public function scopeTopSelling($query)
     {
-        return $query->where('is_top_selling', true);
+        return $query->where('top_selling', true);
     }
 }

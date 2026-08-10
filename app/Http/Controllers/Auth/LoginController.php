@@ -30,7 +30,7 @@ class LoginController extends Controller
 
         if (! $ok) {
             return back()
-                ->withErrors(['email' => 'ইমেইল/ফোন অথবা পাসওয়ার্ড ভুল হয়েছে।'])
+                ->withErrors(['email' => 'Invalid email/phone or password.'])
                 ->withInput($request->only('email'));
         }
 

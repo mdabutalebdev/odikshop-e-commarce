@@ -5,58 +5,71 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\Product;
+use App\Models\SiteSetting;
 use App\Services\Cart;
 use App\Services\PipraPayService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class CheckoutController extends Controller
 {
-    private const SHIPPING_FEE = 60;
-
-    public function index(Cart $cart)
+    public function index(Request $request, Cart $cart)
     {
-        $items = $cart->items();
+        [$items, $subtotal, $buy, $buyQty] = $this->resolveItems($request, $cart);
 
         if ($items->isEmpty()) {
             return redirect()->route('cart.index');
         }
 
-        $subtotal = $cart->subtotal();
-        $shippingFee = self::SHIPPING_FEE;
-        $total = $subtotal + $shippingFee;
+        $settings = SiteSetting::getAll();
+        $insideFee = (int) ($settings['shipping_inside_dhaka'] ?? 60);
+        $outsideFee = (int) ($settings['shipping_outside_dhaka'] ?? 120);
+        $bdGeo = config('bd_geo', []);
 
-        return view('checkout', compact('items', 'subtotal', 'shippingFee', 'total'));
+        return view('checkout', compact('items', 'subtotal', 'insideFee', 'outsideFee', 'buy', 'buyQty', 'bdGeo'));
     }
 
     public function store(Request $request, Cart $cart)
     {
-        $items = $cart->items();
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'string', 'max:30'],
+            'district' => ['required', 'string', 'max:100'],
+            'thana' => ['required', 'string', 'max:100'],
+            'address' => ['required', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'delivery_zone' => ['required', 'in:inside_dhaka,outside_dhaka'],
+            'payment_method' => ['required', 'in:cod,mobile_banking'],
+            'buy' => ['nullable', 'integer'],
+            'qty' => ['nullable', 'integer', 'min:1'],
+        ], [
+            'name.required' => 'পূর্ণ নাম দিন।',
+            'phone.required' => 'মোবাইল নম্বর দিন।',
+            'district.required' => 'জেলা নির্বাচন করুন।',
+            'thana.required' => 'থানা নির্বাচন করুন।',
+            'address.required' => 'ঠিকানা দিন।',
+        ]);
+
+        [$items, $subtotal, $buy, $buyQty] = $this->resolveItems($request, $cart);
 
         if ($items->isEmpty()) {
             return redirect()->route('cart.index');
         }
 
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:30'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'address' => ['required', 'string', 'max:255'],
-            'city' => ['required', 'string', 'max:100'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-            'payment_method' => ['required', 'in:cod,piprapay'],
-        ]);
-
         foreach ($items as $item) {
             if ($item->quantity > $item->product->stock) {
-                return back()->withErrors(['quantity' => "Only {$item->product->stock} units of {$item->product->name} are available."])->withInput();
+                return back()->withErrors(['quantity' => "Only {$item->product->stock} unit(s) of {$item->product->name} are in stock."])->withInput();
             }
         }
 
-        $subtotal = $cart->subtotal();
-        $shippingFee = self::SHIPPING_FEE;
+        $settings = SiteSetting::getAll();
+        $shippingFee = $data['delivery_zone'] === 'inside_dhaka'
+            ? (int) ($settings['shipping_inside_dhaka'] ?? 60)
+            : (int) ($settings['shipping_outside_dhaka'] ?? 120);
         $total = $subtotal + $shippingFee;
 
         $order = DB::transaction(function () use ($data, $items, $subtotal, $shippingFee, $total) {
@@ -65,13 +78,15 @@ class CheckoutController extends Controller
                 'user_id' => auth()->id(),
                 'name' => $data['name'],
                 'phone' => $data['phone'],
-                'email' => $data['email'] ?? null,
+                'division' => null,
+                'district' => $data['district'] ?? null,
+                'thana' => $data['thana'] ?? null,
                 'address' => $data['address'],
-                'city' => $data['city'],
                 'notes' => $data['notes'] ?? null,
                 'subtotal' => $subtotal,
                 'shipping_fee' => $shippingFee,
                 'total' => $total,
+                'delivery_zone' => $data['delivery_zone'],
                 'payment_method' => $data['payment_method'],
                 'payment_status' => 'unpaid',
                 'status' => 'pending',
@@ -81,7 +96,8 @@ class CheckoutController extends Controller
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item->product->id,
-                    'product_name' => $item->product->name,
+                    'name' => $item->product->name,
+                    'options' => $item->options ?? [],
                     'price' => $item->product->price,
                     'quantity' => $item->quantity,
                     'subtotal' => $item->subtotal,
@@ -93,13 +109,37 @@ class CheckoutController extends Controller
             return $order;
         });
 
-        $cart->clear();
-
-        if ($order->payment_method === 'piprapay') {
-            return $this->initiatePipraPayPayment($order);
+        // Only empty the session cart for a normal cart checkout — a "buy now"
+        // order never touched the cart.
+        if (! $request->filled('buy')) {
+            $cart->clear();
         }
 
         return redirect()->route('checkout.confirmation', $order);
+    }
+
+    /**
+     * Resolve the line items for checkout: either a single "buy now" product
+     * (via ?buy=ID&qty=N) or the current session cart.
+     *
+     * @return array{0: Collection, 1: float|int, 2: int|null, 3: int}
+     */
+    private function resolveItems(Request $request, Cart $cart): array
+    {
+        $buyQty = max(1, (int) $request->input('qty', 1));
+        $buyId = (int) $request->input('buy');
+
+        if ($buyId) {
+            $product = Product::find($buyId);
+
+            if (! $product) {
+                return [collect(), 0, null, $buyQty];
+            }
+
+            return [collect([$cart->makeItem($product, $buyQty)]), $product->price * $buyQty, $buyId, $buyQty];
+        }
+
+        return [$cart->items(), $cart->subtotal(), null, $buyQty];
     }
 
     public function pay(Order $order)

@@ -15,7 +15,7 @@ class EnsureUserIsAdmin
         }
 
         if (! $request->user()->is_admin) {
-            abort(403, 'অ্যাক্সেস অনুমোদিত নয়।');
+            abort(403, 'Access denied.');
         }
 
         return $next($request);

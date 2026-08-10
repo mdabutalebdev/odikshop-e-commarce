@@ -12,8 +12,7 @@ class TopSellingController extends Controller
     {
         $products = Product::where('is_active', true)
             ->with('category')
-            ->orderByDesc('is_top_selling')
-            ->orderBy('top_selling_order')
+            ->orderByDesc('top_selling')
             ->orderBy('name')
             ->get()
             ->map(fn ($product) => [
@@ -22,8 +21,8 @@ class TopSellingController extends Controller
                 'category' => $product->category->name ?? '—',
                 'price' => (float) $product->price,
                 'image' => image_url($product->main_image, urlencode($product->name)),
-                'selected' => (bool) $product->is_top_selling,
-                'order' => (int) $product->top_selling_order,
+                'selected' => (bool) $product->top_selling,
+                'order' => 0,
             ])
             ->values();
 
@@ -40,20 +39,14 @@ class TopSellingController extends Controller
 
         $ids = collect($data['products'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
 
-        // Reset everything, then flag + order the chosen products.
-        Product::where('is_top_selling', true)->whereNotIn('id', $ids)->update([
-            'is_top_selling' => false,
-            'top_selling_order' => 0,
+        // Reset everything, then flag the chosen products as top selling.
+        Product::where('top_selling', true)->whereNotIn('id', $ids)->update([
+            'top_selling' => false,
         ]);
 
-        $order = $data['order'] ?? [];
-
-        foreach ($ids as $id) {
-            Product::whereKey($id)->update([
-                'is_top_selling' => true,
-                'top_selling_order' => (int) ($order[$id] ?? 0),
-            ]);
-        }
+        Product::whereIn('id', $ids)->update([
+            'top_selling' => true,
+        ]);
 
         return redirect()->route('admin.top-selling.edit')->with('status', 'Top Selling products updated.');
     }

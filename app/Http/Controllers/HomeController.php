@@ -21,22 +21,22 @@ class HomeController extends Controller
         // Categories with icons
         $categories = Category::active()->topLevel()->where('show_on_home', true)->withCount('products')->orderBy('sort_order')->get();
 
-        // Odik Shop expects $flashSale and $popular.
-        // We'll map Raimart's 'featured' to 'flashSale' and 'bestSeller' to 'popular'.
-        $flashSale = Product::with(['category', 'images'])->active()->featured()->latest()->take(10)->get();
-        $popular = Product::with(['category', 'images'])->active()->bestSeller()->latest()->take(12)->get();
-        
-        $brands = Brand::active()->onHome()->orderBy('sort_order')->orderBy('name')->get();
+        // Home product sections — each driven by its own admin checkbox so the
+        // shop owner can decide exactly which products appear in each section.
+        $flashSale = Product::with(['category', 'images'])->active()->flashSale()->latest()->take(12)->get();
+        $featured = Product::with(['category', 'images'])->active()->featured()->latest()->take(12)->get();
+        $bestSelling = Product::with(['category', 'images'])->active()->bestSeller()->latest()->take(12)->get();
+        $newArrival = Product::with(['category', 'images'])->active()->newArrival()->latest()->take(12)->get();
+
         $testimonials = Testimonial::active()->orderBy('sort_order')->get();
 
         return view('home', compact(
             'centerSlides',
-            'leftBanner',
-            'rightBanner',
             'categories',
             'flashSale',
-            'popular',
-            'brands',
+            'featured',
+            'bestSelling',
+            'newArrival',
             'testimonials'
         ));
     }
