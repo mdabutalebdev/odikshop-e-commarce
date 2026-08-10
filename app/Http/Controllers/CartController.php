@@ -25,6 +25,7 @@ class CartController extends Controller
     private function cartPayload(Cart $cart): array
     {
         return [
+            'ok' => true,
             'count' => $cart->count(),
             'subtotal' => $cart->subtotal(),
             'html' => view('partials.cart-items', [
@@ -39,21 +40,22 @@ class CartController extends Controller
         $quantity = max(1, (int) $request->input('quantity', 1));
         
         $options = $request->input('options', []);
-        
-        // Validate options if product has attributes
-        if ($product->attributes) {
-            foreach ($product->attributes as $attribute) {
-                $values = array_filter(array_map('trim', explode(',', $attribute['values'] ?? '')));
-                if (count($values) > 0) {
-                    if (empty($options[$attribute['name']])) {
-                        return back()->withErrors(['options' => "Please select a {$attribute['name']}."]);
-                    }
+
+        // Validate that the customer picked one value from every variant group.
+        if (! empty($product->attributes) && is_array($product->attributes)) {
+            foreach ($product->attributes as $group) {
+                $name = $group['name'] ?? null;
+                $opts = array_filter($group['options'] ?? []);
+                if ($name && ! empty($opts) && empty($options[$name])) {
+                    return back()->withErrors(['options' => "অনুগ্রহ করে {$name} নির্বাচন করুন।"])->withInput();
                 }
             }
         }
-        
+
         if (is_array($options)) {
             $options = array_filter($options);
+        } else {
+            $options = [];
         }
 
         $cart->add($product, $quantity, $options);

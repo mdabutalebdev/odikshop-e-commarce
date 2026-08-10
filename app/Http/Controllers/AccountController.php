@@ -31,6 +31,6 @@ class AccountController extends Controller
 
         $request->user()->update($data);
 
-        return back()->with('success', 'প্রোফাইল আপডেট হয়েছে।');
+        return back()->with('success', 'Profile updated successfully.');
     }
 }

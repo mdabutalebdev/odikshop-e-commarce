@@ -28,7 +28,7 @@ class BannerController extends Controller
 
         Banner::create($data);
 
-        return redirect()->route('admin.banners.index')->with('success', 'ব্যানার যোগ হয়েছে।');
+        return redirect()->route('admin.banners.index')->with('success', 'Banner added successfully.');
     }
 
     public function edit(Banner $banner)
@@ -44,14 +44,14 @@ class BannerController extends Controller
 
         $banner->update($data);
 
-        return redirect()->route('admin.banners.index')->with('success', 'ব্যানার আপডেট হয়েছে।');
+        return redirect()->route('admin.banners.index')->with('success', 'Banner updated successfully.');
     }
 
     public function destroy(Banner $banner)
     {
         $banner->delete();
 
-        return back()->with('success', 'ব্যানার মুছে ফেলা হয়েছে।');
+        return back()->with('success', 'Banner deleted successfully.');
     }
 
     private function validated(Request $request): array

@@ -6,18 +6,29 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
+    /** Human-readable (Bangla) labels for every order status. */
+    public const STATUS_LABELS = [
+        'pending' => 'Pending',
+        'processing' => 'Processing',
+        'shipped' => 'Shipped',
+        'delivered' => 'Delivered',
+        'cancelled' => 'Cancelled',
+    ];
+
     protected $fillable = [
         'order_number',
         'user_id',
         'name',
         'phone',
-        'email',
+        'division',
+        'district',
+        'thana',
         'address',
-        'city',
         'notes',
         'subtotal',
         'shipping_fee',
         'total',
+        'delivery_zone',
         'status',
         'payment_method',
         'payment_status',

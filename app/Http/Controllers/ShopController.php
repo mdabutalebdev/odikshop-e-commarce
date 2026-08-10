@@ -11,6 +11,7 @@ class ShopController extends Controller
 {
     /** Product flag filters: request value => model column. */
     private const FLAGS = [
+        'flash_sale' => 'is_flash_sale',
         'best_seller' => 'is_best_seller',
         'featured' => 'is_featured',
         'new_arrival' => 'is_new_arrival',
@@ -30,8 +31,10 @@ class ShopController extends Controller
             ->merge($request->filled('brand') ? [(string) $request->input('brand')] : [])
             ->filter()->unique()->values();
 
+        // Flags may arrive as flags[]=featured OR as legacy singular params (?featured=1).
         $selectedFlags = collect((array) $request->input('flags', []))
-            ->intersect(array_keys(self::FLAGS))->values();
+            ->merge(collect(array_keys(self::FLAGS))->filter(fn ($f) => $request->boolean($f)))
+            ->intersect(array_keys(self::FLAGS))->unique()->values();
 
         // Expand category slugs to ids (a top-level category also covers its children)
         $categoryIds = $this->resolveCategoryIds($selectedCategories, $topCategories);
@@ -46,7 +49,7 @@ class ShopController extends Controller
         $context = fn () => Product::active()
             ->when($categoryIds->isNotEmpty(), fn ($q) => $q->whereIn('category_id', $categoryIds))
             ->when($brandIds->isNotEmpty(), fn ($q) => $q->whereIn('brand_id', $brandIds))
-            ->when($request->filled('search'), fn ($q) => $q->where('name', 'like', '%'.$request->string('search').'%'));
+            ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.$request->string('q').'%'));
 
         $priceFloor = (int) floor($context()->min('price') ?? 0);
         $priceCeil = (int) ceil($context()->max('price') ?? 0);
@@ -67,10 +70,11 @@ class ShopController extends Controller
             ->active()
             ->when($categoryIds->isNotEmpty(), fn ($q) => $q->whereIn('category_id', $categoryIds))
             ->when($brandIds->isNotEmpty(), fn ($q) => $q->whereIn('brand_id', $brandIds))
-            ->when($request->filled('search'), fn ($q) => $q->where('name', 'like', '%'.$request->string('search').'%'))
+            ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.$request->string('q').'%'))
             ->when($request->filled('min_price'), fn ($q) => $q->where('price', '>=', $minPrice))
             ->when($request->filled('max_price'), fn ($q) => $q->where('price', '<=', $maxPrice))
             ->when($request->boolean('in_stock'), fn ($q) => $q->where('stock', '>', 0))
+            ->when($request->boolean('out_of_stock'), fn ($q) => $q->where('stock', '<=', 0))
             ->when($request->boolean('on_sale'), fn ($q) => $q->whereColumn('old_price', '>', 'price'))
             ->when($selectedFlags->isNotEmpty(), fn ($q) => $q->where(function ($sub) use ($selectedFlags) {
                 foreach ($selectedFlags as $flag) {
@@ -99,17 +103,19 @@ class ShopController extends Controller
         });
 
         $flagCounts = [
-            'best_seller' => (int) Product::active()->bestSeller()->count(),
+            'flash_sale' => (int) Product::active()->flashSale()->count(),
             'featured' => (int) Product::active()->featured()->count(),
+            'best_seller' => (int) Product::active()->bestSeller()->count(),
             'new_arrival' => (int) Product::active()->newArrival()->count(),
         ];
 
         $availabilityCounts = [
             'in_stock' => (int) Product::active()->where('stock', '>', 0)->count(),
+            'out_of_stock' => (int) Product::active()->where('stock', '<=', 0)->count(),
             'on_sale' => (int) Product::active()->whereColumn('old_price', '>', 'price')->count(),
         ];
         
-        $title = $activeCategory ? $activeCategory->name : 'সব পণ্য';
+        $title = $activeCategory ? $activeCategory->name : 'All Products';
 
         return view('shop', [
             'categories' => $topCategories,
@@ -128,6 +134,30 @@ class ShopController extends Controller
             'availabilityCounts' => $availabilityCounts,
             'title' => $title,
         ]);
+    }
+
+    /** Live search suggestions (JSON) for the header search dropdown. */
+    public function suggest(Request $request)
+    {
+        $q = trim((string) $request->input('q'));
+
+        if (mb_strlen($q) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $results = Product::active()
+            ->where('name', 'like', '%'.$q.'%')
+            ->take(8)
+            ->get(['id', 'name', 'slug', 'price', 'old_price', 'main_image'])
+            ->map(fn ($p) => [
+                'name' => $p->name,
+                'price' => bdt($p->price),
+                'old_price' => ($p->old_price && $p->old_price > $p->price) ? bdt($p->old_price) : null,
+                'url' => route('product.show', $p),
+                'image' => image_url($p->main_image, $p->name),
+            ]);
+
+        return response()->json(['results' => $results]);
     }
 
     /** Turn selected category slugs into the full set of matching category ids. */

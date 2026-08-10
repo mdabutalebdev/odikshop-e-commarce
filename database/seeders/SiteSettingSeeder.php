@@ -11,17 +11,20 @@ class SiteSettingSeeder extends Seeder
     {
         $settings = [
             'site_name' => 'ODHIK SHOP',
-            'site_tagline' => 'অনলাইনে কেনাকাটা করুন',
-            'topbar_text' => 'ফ্রি ডেলিভারি ও ক্যাশ অন ডেলিভারি',
-            'phone' => '01700-000000',
-            'email' => 'support@odikshop.com',
-            'address' => 'ঢাকা, বাংলাদেশ',
-            'facebook' => 'https://facebook.com',
-            'instagram' => 'https://instagram.com',
-            'whatsapp' => '01700000000',
+            'site_tagline' => 'Your Trusted Online Shopping in Bangladesh',
+            'topbar_text' => 'Free Delivery all over Bangladesh & Cash on Delivery',
+            'phone' => '+8801770-980028',
+            'whatsapp' => '8801575513701',
+            'email' => 'odhikshop@gmail.com',
+            'address' => 'Banasree, Rampura, Dhaka-1219',
+            'facebook' => 'https://facebook.com/odhikshop',
+            'instagram' => 'https://instagram.com/odhikshop',
+            'youtube' => 'https://youtube.com/@odhikshop',
+            'tiktok' => 'https://tiktok.com/@odhikshop',
+            'telegram' => 'https://t.me/odhikshop',
             'shipping_inside_dhaka' => '60',
             'shipping_outside_dhaka' => '120',
-            'footer_text' => 'ODHIK SHOP - আপনার বিশ্বস্ত অনলাইন শপিং প্ল্যাটফর্ম।',
+            'footer_text' => 'ODHIK SHOP E-commerce BD — your trusted online shopping platform delivering across Bangladesh.',
         ];
 
         foreach ($settings as $key => $value) {

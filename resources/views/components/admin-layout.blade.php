@@ -1,15 +1,17 @@
-@props(['title' => 'ড্যাশবোর্ড'])
+@props(['title' => 'Dashboard'])
 
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title }} - অ্যাডমিন | ODHIK SHOP</title>
+    <title>{{ $title }} - Admin | ODHIK SHOP</title>
+
+    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     {{-- Admin uses standalone Alpine (no Livewire here) --}}
@@ -19,21 +21,24 @@
 
     @php
         $navItems = [
-            ['route' => 'admin.dashboard', 'icon' => 'fa-gauge-high', 'label' => 'ড্যাশবোর্ড', 'active' => 'admin.dashboard'],
-            ['route' => 'admin.products.index', 'icon' => 'fa-box', 'label' => 'পণ্য', 'active' => 'admin.products.*'],
-            ['route' => 'admin.categories.index', 'icon' => 'fa-layer-group', 'label' => 'ক্যাটাগরি', 'active' => 'admin.categories.*'],
-            ['route' => 'admin.banners.index', 'icon' => 'fa-image', 'label' => 'ব্যানার', 'active' => 'admin.banners.*'],
-            ['route' => 'admin.orders.index', 'icon' => 'fa-bag-shopping', 'label' => 'অর্ডার', 'active' => 'admin.orders.*'],
-            ['route' => 'admin.settings.edit', 'icon' => 'fa-gear', 'label' => 'সেটিংস', 'active' => 'admin.settings.*'],
+            ['route' => 'admin.dashboard', 'icon' => 'fa-gauge-high', 'label' => 'Dashboard', 'active' => 'admin.dashboard'],
+            ['route' => 'admin.products.index', 'icon' => 'fa-box', 'label' => 'Products', 'active' => 'admin.products.*'],
+            ['route' => 'admin.categories.index', 'icon' => 'fa-layer-group', 'label' => 'Categories', 'active' => 'admin.categories.*'],
+            ['route' => 'admin.banners.index', 'icon' => 'fa-image', 'label' => 'Banners', 'active' => 'admin.banners.*'],
+            ['route' => 'admin.orders.index', 'icon' => 'fa-bag-shopping', 'label' => 'Orders', 'active' => 'admin.orders.*'],
+            ['route' => 'admin.reviews.index', 'icon' => 'fa-star', 'label' => 'Reviews', 'active' => 'admin.reviews.*'],
+            ['route' => 'admin.settings.edit', 'icon' => 'fa-gear', 'label' => 'Settings', 'active' => 'admin.settings.*'],
         ];
     @endphp
 
     {{-- Sidebar --}}
     <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-brand-dark text-white flex flex-col transition-transform lg:translate-x-0"
            :class="sidebar ? 'translate-x-0' : '-translate-x-full'">
-        <div class="h-16 flex items-center gap-2 px-5 border-b border-white/10">
-            <span class="grid place-items-center w-9 h-9 rounded-lg bg-white text-brand font-extrabold">O</span>
-            <span class="font-extrabold">ODHIK <span class="text-white/70 font-medium">Admin</span></span>
+        <div class="h-16 flex items-center gap-2 px-4 border-b border-white/10">
+            <span class="bg-white rounded-lg px-2 py-1.5 inline-flex">
+                <img src="{{ asset('images/logo-header.png') }}" alt="ODHIK SHOP" width="400" height="171" class="h-6 w-auto object-contain">
+            </span>
+            <span class="text-white/70 font-medium text-sm">Admin</span>
         </div>
         <nav class="flex-1 overflow-y-auto p-3 space-y-1">
             @foreach($navItems as $item)
@@ -79,5 +84,7 @@
             {{ $slot }}
         </main>
     </div>
+
+    @stack('scripts')
 </body>
 </html>

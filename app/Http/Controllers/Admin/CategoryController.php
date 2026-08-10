@@ -12,16 +12,17 @@ class CategoryController extends Controller
 {
     public function index()
     {
-        $categories = Category::with('children')->topLevel()->orderBy('sort_order')->get();
+        $categories = Category::with('children')->withCount('products')->topLevel()->orderBy('sort_order')->get();
 
         return view('admin.categories.index', compact('categories'));
     }
 
     public function create()
     {
-        $parents = Category::topLevel()->orderBy('name')->get();
+        $category = new Category();
+        $parents = Category::topLevel()->orderBy('name_en')->get();
 
-        return view('admin.categories.create', compact('parents'));
+        return view('admin.categories.create', compact('category', 'parents'));
     }
 
     public function store(Request $request)
@@ -32,7 +33,7 @@ class CategoryController extends Controller
             $data['image'] = $request->file('image')->store('categories', 'public');
         }
 
-        $data['slug'] = Str::slug($data['name']);
+        $data['slug'] = $this->uniqueSlug($data['name_en'], $data['name_bn'] ?? null);
 
         Category::create($data);
 
@@ -41,7 +42,7 @@ class CategoryController extends Controller
 
     public function edit(Category $category)
     {
-        $parents = Category::topLevel()->where('id', '!=', $category->id)->orderBy('name')->get();
+        $parents = Category::topLevel()->where('id', '!=', $category->id)->orderBy('name_en')->get();
 
         return view('admin.categories.edit', compact('category', 'parents'));
     }
@@ -57,7 +58,11 @@ class CategoryController extends Controller
             $data['image'] = $request->file('image')->store('categories', 'public');
         }
 
-        $data['slug'] = Str::slug($data['name']);
+        // Keep the existing slug so category URLs stay stable; only mint one
+        // if this category somehow has none.
+        if (empty($category->slug)) {
+            $data['slug'] = $this->uniqueSlug($data['name_en'], $data['name_bn'] ?? null, $category->id);
+        }
 
         $category->update($data);
 
@@ -74,19 +79,50 @@ class CategoryController extends Controller
     private function validated(Request $request): array
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name_en' => ['required', 'string', 'max:255'],
+            'name_bn' => ['nullable', 'string', 'max:255'],
             'parent_id' => ['nullable', 'exists:categories,id'],
+            'icon' => ['nullable', 'string', 'max:255'],
             'image' => ['nullable', 'image', 'max:2048'],
             'sort_order' => ['nullable', 'integer'],
             'is_active' => ['sometimes', 'boolean'],
+            'show_in_nav' => ['sometimes', 'boolean'],
             'show_on_home' => ['sometimes', 'boolean'],
         ]);
 
         $data['is_active'] = $request->boolean('is_active');
+        $data['show_in_nav'] = $request->boolean('show_in_nav');
         $data['show_on_home'] = $request->boolean('show_on_home');
         $data['sort_order'] = $request->integer('sort_order');
         unset($data['image']);
 
         return $data;
+    }
+
+    /**
+     * Build a URL-safe, unique slug from the English name, falling back to the
+     * Bangla name (transliterated) and finally a random token — because
+     * Str::slug() returns an empty string for pure Bangla input.
+     */
+    private function uniqueSlug(string $nameEn, ?string $nameBn = null, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($nameEn);
+
+        if ($base === '' && $nameBn) {
+            $base = Str::slug(Str::ascii($nameBn));
+        }
+
+        if ($base === '') {
+            $base = 'category-'.Str::lower(Str::random(6));
+        }
+
+        $slug = $base;
+        $i = 2;
+
+        while (Category::where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists()) {
+            $slug = $base.'-'.$i++;
+        }
+
+        return $slug;
     }
 }

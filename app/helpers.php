@@ -10,7 +10,7 @@ if (! function_exists('image_url')) {
     function image_url(?string $path, string $placeholderText = 'Odik+Shop'): string
     {
         if (empty($path)) {
-            return 'https://placehold.co/600x600/e6f2f0/008060?text='.urlencode($placeholderText);
+            return 'https://placehold.co/600x600/e3f3f3/0e9495?text='.urlencode($placeholderText);
         }
 
         // Absolute URLs pass through untouched.
@@ -18,7 +18,8 @@ if (! function_exists('image_url')) {
             return $path;
         }
 
-        return asset('storage/'.ltrim($path, '/'));
+        // Root-relative URL — works regardless of APP_URL / hostname.
+        return '/storage/'.ltrim($path, '/');
     }
 }
 

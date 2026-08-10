@@ -9,26 +9,26 @@ class Wishlist
 {
     private const SESSION_KEY = 'wishlist';
 
-    public function toggle(Product $product): bool
+    public function toggle(int $productId): bool
     {
         $ids = $this->raw();
 
-        if (in_array($product->id, $ids, true)) {
-            $ids = array_values(array_diff($ids, [$product->id]));
+        if (in_array($productId, $ids, true)) {
+            $ids = array_values(array_diff($ids, [$productId]));
             session([self::SESSION_KEY => $ids]);
 
             return false;
         }
 
-        $ids[] = $product->id;
+        $ids[] = $productId;
         session([self::SESSION_KEY => $ids]);
 
         return true;
     }
 
-    public function remove(Product $product): void
+    public function remove(int $productId): void
     {
-        $ids = array_values(array_diff($this->raw(), [$product->id]));
+        $ids = array_values(array_diff($this->raw(), [$productId]));
         session([self::SESSION_KEY => $ids]);
     }
 

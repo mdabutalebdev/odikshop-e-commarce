@@ -35,6 +35,6 @@ class RegisterController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('account')->with('success', 'অ্যাকাউন্ট তৈরি হয়েছে। স্বাগতম!');
+        return redirect()->route('account')->with('success', 'Account created successfully. Welcome!');
     }
 }

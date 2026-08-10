@@ -21,6 +21,6 @@ class ContactController extends Controller
         ]);
 
         // In a real deployment this would notify the store owner.
-        return back()->with('success', 'আপনার বার্তা পাঠানো হয়েছে। আমরা শীঘ্রই যোগাযোগ করব।');
+        return back()->with('success', 'Your message has been sent. We will contact you soon.');
     }
 }
