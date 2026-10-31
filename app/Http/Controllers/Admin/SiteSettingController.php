@@ -19,8 +19,10 @@ class SiteSettingController extends Controller
     {
         $fields = [
             'site_name', 'site_tagline', 'topbar_text', 'phone', 'email', 'address',
+            'business_hours',
             'facebook', 'instagram', 'youtube', 'tiktok', 'telegram', 'whatsapp',
             'shipping_inside_dhaka', 'shipping_outside_dhaka', 'footer_text',
+            'bkash_number', 'nagad_number', 'payment_instruction',
         ];
 
         foreach ($fields as $field) {

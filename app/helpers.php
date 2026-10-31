@@ -19,7 +19,13 @@ if (! function_exists('image_url')) {
         }
 
         // Root-relative URL — works regardless of APP_URL / hostname.
-        return '/storage/'.ltrim($path, '/');
+        $storagePath = 'storage/'.ltrim($path, '/');
+        
+        if (!file_exists(public_path($storagePath))) {
+            return 'https://placehold.co/600x600/e3f3f3/0e9495?text='.urlencode($placeholderText);
+        }
+
+        return '/'.$storagePath;
     }
 }
 
@@ -45,6 +51,6 @@ if (! function_exists('bdt')) {
      */
     function bdt($amount): string
     {
-        return 'BDT '.number_format((float) $amount);
+        return '৳ '.number_format((float) $amount);
     }
 }

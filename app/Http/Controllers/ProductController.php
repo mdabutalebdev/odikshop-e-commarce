@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Services\Tracking\Pixel;
 
 class ProductController extends Controller
 {
-    public function show(Product $product)
+    public function show(Product $product, Pixel $pixel)
     {
         abort_unless($product->is_active, 404);
 
         $product->load('images', 'category', 'approvedReviews');
+
+        $pixel->viewContent($product);
 
         $related = Product::active()
             ->where('id', '!=', $product->id)

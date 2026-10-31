@@ -26,7 +26,10 @@
             ['route' => 'admin.categories.index', 'icon' => 'fa-layer-group', 'label' => 'Categories', 'active' => 'admin.categories.*'],
             ['route' => 'admin.banners.index', 'icon' => 'fa-image', 'label' => 'Banners', 'active' => 'admin.banners.*'],
             ['route' => 'admin.orders.index', 'icon' => 'fa-bag-shopping', 'label' => 'Orders', 'active' => 'admin.orders.*'],
+            ['route' => 'admin.contact_messages.index', 'icon' => 'fa-envelope', 'label' => 'Contact Messages', 'active' => 'admin.contact_messages.*'],
             ['route' => 'admin.reviews.index', 'icon' => 'fa-star', 'label' => 'Reviews', 'active' => 'admin.reviews.*'],
+            ['route' => 'admin.tracking.index', 'icon' => 'fa-chart-line', 'label' => 'Pixel & Tracking', 'active' => 'admin.tracking.*'],
+            ['route' => 'admin.steadfast.index', 'icon' => 'fa-truck-fast', 'label' => 'Steadfast Courier', 'active' => 'admin.steadfast.*'],
             ['route' => 'admin.settings.edit', 'icon' => 'fa-gear', 'label' => 'Settings', 'active' => 'admin.settings.*'],
         ];
     @endphp
@@ -36,7 +39,7 @@
            :class="sidebar ? 'translate-x-0' : '-translate-x-full'">
         <div class="h-16 flex items-center gap-2 px-4 border-b border-white/10">
             <span class="bg-white rounded-lg px-2 py-1.5 inline-flex">
-                <img src="{{ asset('images/logo-header.png') }}" alt="ODHIK SHOP" width="400" height="171" class="h-6 w-auto object-contain">
+                <img src="{{ asset('images/transparent logo.png') }}" alt="ODHIK SHOP" width="400" height="171" class="h-6 w-auto object-contain">
             </span>
             <span class="text-white/70 font-medium text-sm">Admin</span>
         </div>

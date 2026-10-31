@@ -21,7 +21,7 @@
 {{-- ===== Main header (white) ===== --}}
 <header class="bg-white text-ink sticky top-0 z-40 shadow-card border-b border-line">
     <div class="container-x">
-        <div class="relative flex items-center gap-3 lg:gap-6 py-3">
+        <div class="relative flex items-center justify-between gap-3 lg:gap-6 py-1.5 min-h-[64px]">
             {{-- Mobile hamburger --}}
             <button type="button" class="lg:hidden text-2xl -ml-1 text-ink relative z-10" @click="mobileMenu = true" aria-label="Menu">
                 <i class="fa-solid fa-bars"></i>
@@ -29,11 +29,11 @@
 
             {{-- Logo — centered on mobile, left-aligned on desktop --}}
             <a href="{{ route('home') }}" class="shrink-0 absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0">
-                <img src="{{ asset('images/logo-header.png') }}" alt="{{ $settings['site_name'] ?? 'ODHIK SHOP' }}" width="400" height="171" class="h-9 sm:h-11 w-auto object-contain">
+                <img src="{{ asset('images/logo-wide.png') }}" alt="{{ $settings['site_name'] ?? 'ODHIK SHOP' }}" class="h-11 sm:h-12 w-auto object-contain">
             </a>
 
             {{-- Search (desktop) with live suggestions --}}
-            <form action="{{ route('shop') }}" method="GET" class="hidden md:flex flex-1 max-w-2xl" data-search>
+            <form action="{{ route('shop') }}" method="GET" class="hidden md:flex flex-1 max-w-xl lg:max-w-2xl mx-auto" data-search>
                 <div class="relative w-full">
                     <input type="text" name="q" value="{{ request('q') }}" placeholder="{{ __('messages.search_placeholder') }}" autocomplete="off" data-search-input
                            class="w-full h-12 rounded-lg pl-4 pr-14 text-ink text-sm bg-canvas border border-line placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand">
@@ -124,7 +124,7 @@
          x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
          class="absolute inset-y-0 left-0 w-80 max-w-[85%] bg-white flex flex-col">
         <div class="bg-white border-b border-line p-4 flex items-center justify-between">
-            <img src="{{ asset('images/logo-header.png') }}" alt="{{ $settings['site_name'] ?? 'ODHIK SHOP' }}" class="h-8 w-auto object-contain">
+            <img src="{{ asset('images/logo-wide.png') }}" alt="{{ $settings['site_name'] ?? 'ODHIK SHOP' }}" class="h-9 w-auto object-contain">
             <button @click="mobileMenu = false" class="text-2xl text-ink"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <nav class="flex-1 overflow-y-auto p-2">

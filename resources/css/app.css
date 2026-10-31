@@ -33,6 +33,14 @@
     --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
+html, body {
+    max-width: 100%;
+    /* clip (not hidden) prevents <body> becoming a scroll container,
+       so the sticky header keeps working while still blocking x-overflow. */
+    overflow-x: clip;
+    position: relative;
+}
+
 @layer base {
     /* 🔒 Zero horizontal overflow on mobile — matches the reference build.
        overflow-x: clip (not hidden) avoids turning <body> into a scroll

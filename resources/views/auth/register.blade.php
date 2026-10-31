@@ -1,7 +1,7 @@
 <x-layout title="Register">
     <div class="container-x py-8 max-w-md mx-auto">
         <div class="text-center mb-6">
-            <img src="{{ asset('images/logo-header.png') }}" alt="ODHIK SHOP" width="400" height="171" class="h-11 w-auto object-contain mx-auto mb-3">
+            <img src="{{ asset('images/transparent logo.png') }}" alt="ODHIK SHOP" width="400" height="171" class="h-11 w-auto object-contain mx-auto mb-3">
             <h1 class="text-xl font-extrabold">Create a new account</h1>
         </div>
 

@@ -171,7 +171,7 @@ const initHeroSlider = () => {
             track.style.transition = animate ? 'transform .5s ease' : 'none';
             track.style.transform = `translateX(-${i * 100}%)`;
             slider.querySelectorAll('[data-hero-dot]').forEach((d, idx) =>
-                d.classList.toggle('bg-white', idx === i)
+                d.classList.toggle('bg-accent', idx === i)
             );
         };
 

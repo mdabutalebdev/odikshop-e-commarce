@@ -31,7 +31,15 @@ class Order extends Model
         'delivery_zone',
         'status',
         'payment_method',
+        'payment_channel',
+        'payment_sender_number',
+        'payment_txn_id',
         'payment_status',
+        'courier_consignment_id',
+        'courier_tracking_code',
+        'courier_status',
+        'courier_booked_at',
+        'courier_note',
     ];
 
     protected function casts(): array
@@ -40,6 +48,7 @@ class Order extends Model
             'subtotal' => 'decimal:2',
             'shipping_fee' => 'decimal:2',
             'total' => 'decimal:2',
+            'courier_booked_at' => 'datetime',
         ];
     }
 

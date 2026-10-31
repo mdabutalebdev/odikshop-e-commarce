@@ -1,11 +1,52 @@
 @php
     $editing = $product->exists;
-    $existingVariants = old('variants_json') ?: json_encode($product->attributes ?? [], JSON_UNESCAPED_UNICODE);
+    // Variant groups for the editor: prefer old() input on validation failure,
+    // otherwise the product's saved attributes. Kept as a real PHP array so it can be
+    // handed to Alpine via Js::from() below (no manual/double JSON encoding).
+    $variantData = old('attributes') ? json_decode(old('attributes'), true) : ($product->attributes ?? []);
+    if (! is_array($variantData)) {
+        $variantData = [];
+    }
+
+    // Upload guards must mirror what this server actually accepts. A post bigger than
+    // post_max_size is rejected with a bare 413 before PHP runs, so Laravel's own
+    // validation never fires and the whole form is lost. Reading the live ini values
+    // keeps the on-screen limits correct if the host limits are raised later.
+    $iniBytes = static function (string $key): int {
+        $raw = trim((string) ini_get($key));
+        if ($raw === '') {
+            return 0;
+        }
+
+        return (int) match (strtolower(substr($raw, -1))) {
+            'g' => (float) $raw * 1024 ** 3,
+            'm' => (float) $raw * 1024 ** 2,
+            'k' => (float) $raw * 1024,
+            default => (float) $raw,
+        };
+    };
+
+    $postMax = $iniBytes('post_max_size') ?: 8 * 1024 ** 2;
+    $uploadMax = $iniBytes('upload_max_filesize') ?: $postMax;
+
+    // ~10% headroom for the text fields, description HTML and multipart overhead.
+    $totalLimitMb = max(1, (int) floor($postMax * 0.9 / 1024 ** 2));
+    $mainLimitMb = max(1, min(10, (int) floor($uploadMax / 1024 ** 2), $totalLimitMb));
+    $galleryLimitMb = max(1, min(20, (int) floor($uploadMax / 1024 ** 2), $totalLimitMb));
 @endphp
 
-<form method="POST" action="{{ $editing ? route('admin.products.update', $product) : route('admin.products.store') }}" enctype="multipart/form-data" class="grid lg:grid-cols-[1fr_320px] gap-6">
+<form id="product-form" method="POST" action="{{ $editing ? route('admin.products.update', $product) : route('admin.products.store') }}" enctype="multipart/form-data" class="grid lg:grid-cols-[1fr_320px] gap-6">
     @csrf
     @if($editing) @method('PUT') @endif
+
+    {{-- Upload size guard: server rejects oversized posts with a bare 413 before PHP runs,
+         so the whole form would be lost. Warn here instead. --}}
+    {{-- Inline styles on purpose: this markup ships without a CSS rebuild, and the
+         utility classes it would otherwise need are not in the compiled bundle. --}}
+    <div id="upload-size-alert" style="display:none; grid-column:1 / -1; border:1px solid #f2a6a6; background:#fdf2f2; color:#c02626; border-radius:10px; padding:12px 16px; font-size:14px; line-height:1.6;">
+        <i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i>
+        <span id="upload-size-alert-text"></span>
+    </div>
 
     <div class="space-y-5">
         {{-- Basic info --}}
@@ -53,7 +94,7 @@
 
         {{-- Product variants --}}
         <div class="bg-white rounded-xl border border-line p-5"
-             x-data="variantEditor({{ $existingVariants ? json_encode($existingVariants) : '\'[]\'' }})">
+             x-data="variantEditor({{ \Illuminate\Support\Js::from($variantData) }})">
             <div class="flex items-center justify-between mb-3">
                 <div>
                     <h3 class="font-semibold text-sm">পণ্যের ভেরিয়েন্ট</h3>
@@ -89,40 +130,62 @@
     {{-- Right column --}}
     <div class="space-y-5">
         {{-- Main image --}}
-        <div class="bg-white rounded-xl border border-line p-5">
+        <div class="bg-white rounded-xl border border-line p-5" x-data="mainImageUploader()">
             <label class="block text-sm font-medium mb-2">প্রধান ছবি (Cover)</label>
-            @if($product->main_image)
-                <img src="{{ image_url($product->main_image, $product->name) }}" class="w-full aspect-square object-cover rounded-lg border border-line mb-3 bg-canvas">
-            @endif
-            <input type="file" name="main_image" accept="image/*" class="w-full text-sm mb-2 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-light file:text-brand file:font-semibold">
+            
+            <div x-show="!previewUrl" class="mb-3 relative group">
+                @if($product->main_image)
+                    <img src="{{ image_url($product->main_image, $product->name) }}" class="w-full aspect-square object-cover rounded-lg border border-line bg-canvas">
+                @endif
+            </div>
+
+            <div x-show="previewUrl" class="mb-3 relative group" style="display: none;">
+                <img :src="previewUrl" class="w-full aspect-square object-cover rounded-lg border border-line bg-canvas">
+                <button type="button" @click="removePreview" class="absolute top-1 right-1 w-7 h-7 rounded-full bg-sale text-white grid place-items-center shadow hover:bg-red-600" aria-label="Remove">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            </div>
+
+            <input type="file" name="main_image" x-ref="mainInput" accept="image/*" @change="handleFileSelect" class="hidden">
+            <button type="button" @click="$refs.mainInput.click()" class="btn-brand h-9 px-4 text-sm mb-2"><i class="fa-solid fa-image mr-1"></i> ছবি নির্বাচন করুন</button>
+            <p class="text-xs text-muted">সর্বোচ্চ <span x-text="limitMB"></span> MB</p>
+            <p x-show="error" x-text="error" style="display: none;" class="text-xs text-sale mt-1"></p>
+
             <label class="block text-xs text-muted mb-1 mt-2">অথবা ছবির URL</label>
             <input type="text" name="image_url" placeholder="https://..." class="w-full h-10 rounded-lg border border-line px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30">
         </div>
 
         {{-- Additional images (gallery — up to 8) --}}
-        <div class="bg-white rounded-xl border border-line p-5">
+        <div class="bg-white rounded-xl border border-line p-5" x-data="galleryUploader()">
             <label class="block text-sm font-medium mb-2">অতিরিক্ত ছবি (Gallery) — সর্বোচ্চ ৮টি</label>
 
-            @if($editing && $product->images->isNotEmpty())
-                <div class="grid grid-cols-3 gap-2 mb-3">
+            <div class="grid grid-cols-3 gap-2 mb-3">
+                @if($editing && $product->images->isNotEmpty())
                     @foreach($product->images as $img)
                         <div class="relative group">
                             <img src="{{ image_url($img->path) }}" class="w-full aspect-square object-cover rounded-lg border border-line bg-canvas">
-                            <form method="POST" action="{{ route('admin.products.images.destroy', [$product, $img]) }}"
-                                  class="absolute top-1 right-1"
-                                  onsubmit="return confirm('এই ছবিটি মুছে ফেলতে চান?')">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="w-7 h-7 rounded-full bg-sale text-white grid place-items-center shadow hover:bg-red-600" aria-label="Delete">
-                                    <i class="fa-solid fa-xmark text-xs"></i>
-                                </button>
-                            </form>
+                            <button type="submit" form="delete-img-{{ $img->id }}" class="absolute top-1 right-1 w-7 h-7 rounded-full bg-sale text-white grid place-items-center shadow hover:bg-red-600" aria-label="Delete" onclick="return confirm('এই ছবিটি মুছে ফেলতে চান?')">
+                                <i class="fa-solid fa-xmark text-xs"></i>
+                            </button>
                         </div>
                     @endforeach
-                </div>
-            @endif
+                @endif
 
-            <input type="file" name="images[]" accept="image/*" multiple class="w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-brand-light file:text-brand file:font-semibold">
-            <p class="text-xs text-muted mt-1">একসাথে একাধিক ছবি নির্বাচন করুন (Ctrl / Cmd + click)।</p>
+                <template x-for="(preview, index) in previews" :key="index">
+                    <div class="relative group">
+                        <img :src="preview.url" class="w-full aspect-square object-cover rounded-lg border border-line bg-canvas border border-brand/30">
+                        <button type="button" @click="removePreview(index)" class="absolute top-1 right-1 w-7 h-7 rounded-full bg-brand text-white grid place-items-center shadow hover:bg-red-600" aria-label="Remove">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                </template>
+            </div>
+
+            <input type="file" name="images[]" x-ref="galleryInput" multiple class="hidden">
+            <button type="button" @click="$refs.dummyGallery.click()" class="btn-brand h-9 px-4 text-sm mb-2"><i class="fa-solid fa-images mr-1"></i> একাধিক ছবি যোগ করুন</button>
+            <input type="file" accept="image/*" x-ref="dummyGallery" multiple @change="handleFileSelect" class="hidden">
+            <p class="text-xs text-muted mt-1">একসাথে একাধিক ছবি নির্বাচন করতে পারেন। প্রতিটি সর্বোচ্চ <span x-text="limitMB"></span> MB।</p>
+            <p x-show="error" x-text="error" style="display: none;" class="text-xs text-sale mt-1"></p>
         </div>
 
         {{-- Category + flags --}}
@@ -144,12 +207,22 @@
             <label class="flex items-center gap-2 text-sm border-t border-line pt-3 mt-1"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $editing ? $product->is_active : true)) class="accent-brand">Active (visible on site)</label>
         </div>
 
+        <p class="text-xs text-muted">এই সার্ভারে একবারে সর্বোচ্চ <strong>{{ $totalLimitMb }} MB</strong> আপলোড করা যায়।</p>
+
         <div class="flex gap-2">
             <button type="submit" class="btn-brand h-11 flex-1">{{ $editing ? 'আপডেট করুন' : 'সেভ করুন' }}</button>
             <a href="{{ route('admin.products.index') }}" class="h-11 px-4 rounded-lg border border-line bg-white inline-flex items-center text-sm">বাতিল</a>
         </div>
     </div>
 </form>
+
+@if($editing && $product->images->isNotEmpty())
+    @foreach($product->images as $img)
+        <form id="delete-img-{{ $img->id }}" method="POST" action="{{ route('admin.products.images.destroy', [$product, $img]) }}" class="hidden">
+            @csrf @method('DELETE')
+        </form>
+    @endforeach
+@endif
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
@@ -214,5 +287,159 @@
             removeOption(gi, oi) { this.groups[gi].options.splice(oi, 1); },
         };
     }
+
+    // ===== Upload limits =====
+    // Values come from this server's live php.ini (see the @php block at the top of the
+    // file), capped by the ProductController rules. Nothing to hand-edit here: raise
+    // post_max_size / upload_max_filesize and these follow automatically.
+    const UPLOAD = {
+        MAIN_MB: {{ $mainLimitMb }},
+        GALLERY_MB: {{ $galleryLimitMb }},
+        GALLERY_MAX: 8,
+        TOTAL_MB: {{ $totalLimitMb }},
+    };
+
+    const mb = bytes => bytes / 1024 / 1024;
+    const fmtMB = bytes => mb(bytes).toFixed(1);
+
+    // Chrome only holds a *reference* to the picked file and re-reads it from disk when
+    // the form is finally submitted. On Android the gallery/camera app often rewrites or
+    // clears that file in the meantime, and the upload dies with ERR_UPLOAD_FILE_CHANGED
+    // before the request ever leaves the browser. Copying the bytes into memory at pick
+    // time gives the form a file that no longer depends on the on-disk original.
+    // (Product photos are a few MB, so holding them in memory is cheap.)
+    const detachFile = async (file) => {
+        try {
+            const buffer = await file.arrayBuffer();
+            return new File([buffer], file.name, { type: file.type, lastModified: Date.now() });
+        } catch (e) {
+            return file;   // keep the original rather than losing the upload entirely
+        }
+    };
+
+    const setInputFiles = (input, files) => {
+        const dt = new DataTransfer();
+        files.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+    };
+
+    const readAsDataURL = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+
+    // ===== Image Uploaders (Alpine) =====
+    function mainImageUploader() {
+        return {
+            previewUrl: null,
+            error: null,
+            limitMB: UPLOAD.MAIN_MB,
+            async handleFileSelect(event) {
+                const picked = event.target.files[0];
+                if (!picked) return;
+
+                this.error = null;
+
+                if (mb(picked.size) > UPLOAD.MAIN_MB) {
+                    this.error = `ছবিটি ${fmtMB(picked.size)} MB — সর্বোচ্চ ${UPLOAD.MAIN_MB} MB পর্যন্ত দেওয়া যাবে। ছবিটি ছোট করে আবার চেষ্টা করুন।`;
+                    event.target.value = '';
+                    return;
+                }
+
+                const file = await detachFile(picked);
+                setInputFiles(this.$refs.mainInput, [file]);
+
+                this.previewUrl = await readAsDataURL(file);
+            },
+            removePreview() {
+                this.previewUrl = null;
+                this.error = null;
+                this.$refs.mainInput.value = '';
+            }
+        };
+    }
+
+    function galleryUploader() {
+        return {
+            previews: [],
+            error: null,
+            limitMB: UPLOAD.GALLERY_MB,
+            existingCount: {{ $editing ? $product->images->count() : 0 }},
+            async handleFileSelect(event) {
+                const selected = Array.from(event.target.files);
+                event.target.value = '';
+
+                const rejected = [];
+                const accepted = [];
+
+                selected.forEach(file => {
+                    if (mb(file.size) > UPLOAD.GALLERY_MB) {
+                        rejected.push(`${file.name} (${fmtMB(file.size)} MB)`);
+                    } else {
+                        accepted.push(file);
+                    }
+                });
+
+                // Gallery slots already taken by saved images count against the limit.
+                const room = UPLOAD.GALLERY_MAX - this.existingCount - this.previews.length;
+                const overflow = accepted.splice(Math.max(room, 0));
+
+                this.error = null;
+                const notes = [];
+                if (rejected.length) {
+                    notes.push(`${UPLOAD.GALLERY_MB} MB এর বড় হওয়ায় বাদ পড়েছে: ${rejected.join(', ')}`);
+                }
+                if (overflow.length) {
+                    notes.push(`সর্বোচ্চ ${UPLOAD.GALLERY_MAX}টি ছবি দেওয়া যায়, তাই ${overflow.length}টি বাদ পড়েছে।`);
+                }
+                if (notes.length) {
+                    this.error = notes.join(' ');
+                }
+
+                for (const picked of accepted) {
+                    const file = await detachFile(picked);
+                    this.previews.push({ file: file, url: await readAsDataURL(file) });
+                    this.syncInput();
+                }
+            },
+            removePreview(index) {
+                this.previews.splice(index, 1);
+                this.error = null;
+                this.syncInput();
+            },
+            syncInput() {
+                const dt = new DataTransfer();
+                this.previews.forEach(p => dt.items.add(p.file));
+                this.$refs.galleryInput.files = dt.files;
+            }
+        };
+    }
+
+    // ===== Total payload guard =====
+    // Per-file checks above can still add up past the server limit, so block the submit
+    // rather than let the browser post something that comes back as a 413.
+    document.getElementById('product-form')?.addEventListener('submit', function (event) {
+        const alertBox = document.getElementById('upload-size-alert');
+        const alertText = document.getElementById('upload-size-alert-text');
+
+        let total = 0;
+        this.querySelectorAll('input[type="file"]').forEach(input => {
+            Array.from(input.files || []).forEach(file => { total += file.size; });
+        });
+
+        if (mb(total) <= UPLOAD.TOTAL_MB) {
+            alertBox.style.display = 'none';
+            return;
+        }
+
+        event.preventDefault();
+        alertText.textContent =
+            `সব ছবি মিলিয়ে ${fmtMB(total)} MB হয়ে গেছে — একবারে সর্বোচ্চ ${UPLOAD.TOTAL_MB} MB পাঠানো যায়। ` +
+            `কিছু ছবি বাদ দিন, অথবা ছবিগুলো ছোট করে (৩০০ KB এর নিচে) আবার চেষ্টা করুন।`;
+        alertBox.style.display = 'block';
+        alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
 </script>
 @endpush

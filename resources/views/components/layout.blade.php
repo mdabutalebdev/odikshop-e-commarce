@@ -1,7 +1,7 @@
 @props(['title' => null])
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="overflow-x-clip">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,10 +18,14 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+
+    @include('partials.tracking-head')
 </head>
-<body class="min-h-screen flex flex-col antialiased"
+<body class="min-h-screen flex flex-col antialiased overflow-x-clip"
       x-data="{ mobileMenu: false, cartOpen: false, searchOpen: false }"
       @open-cart.window="cartOpen = true">
+
+    @include('partials.tracking-body')
 
     @include('partials.header')
 
