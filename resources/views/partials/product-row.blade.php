@@ -14,7 +14,7 @@
         </div>
         <div data-row-scroll class="flex gap-3 overflow-x-auto no-scrollbar snap-x pb-1">
             @foreach($products as $product)
-                <div class="w-40 sm:w-48 shrink-0 snap-start">
+                <div class="w-[calc(50%-6px)] sm:w-48 shrink-0 snap-start">
                     <x-product-card :product="$product" />
                 </div>
             @endforeach

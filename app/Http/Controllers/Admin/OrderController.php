@@ -36,4 +36,16 @@ class OrderController extends Controller
 
         return back()->with('status', 'Order status updated.');
     }
+
+    public function bulkPrint(Request $request)
+    {
+        $request->validate([
+            'order_ids' => 'required|array',
+            'order_ids.*' => 'exists:orders,id',
+        ]);
+
+        $orders = Order::with('items.product')->whereIn('id', $request->order_ids)->get();
+
+        return view('admin.orders.bulk-print', compact('orders'));
+    }
 }

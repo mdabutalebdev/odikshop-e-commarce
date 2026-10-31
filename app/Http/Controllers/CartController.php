@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Services\Cart;
+use App\Services\Tracking\Pixel;
 use Illuminate\Http\Request;
 
 class CartController extends Controller
@@ -35,7 +36,7 @@ class CartController extends Controller
         ];
     }
 
-    public function add(Request $request, Cart $cart, Product $product)
+    public function add(Request $request, Cart $cart, Product $product, Pixel $pixel)
     {
         $quantity = max(1, (int) $request->input('quantity', 1));
         
@@ -61,12 +62,23 @@ class CartController extends Controller
         $cart->add($product, $quantity, $options);
 
         if ($request->input('redirect') === 'checkout') {
+            // The checkout page fires InitiateCheckout, so only the server copy
+            // of AddToCart is needed here.
+            $pixel->addToCart($product, $quantity);
+
             return redirect()->route('checkout.index');
         }
 
         if ($request->wantsJson()) {
-            return response()->json($this->cartPayload($cart) + ['message' => "{$product->name} added to cart."]);
+            // The descriptor rides back with the cart payload; the tracking
+            // snippet picks it up and fires the browser half with the same id.
+            return response()->json($this->cartPayload($cart) + [
+                'message' => "{$product->name} added to cart.",
+                'track' => $pixel->addToCart($product, $quantity),
+            ]);
         }
+
+        $pixel->trackAfterRedirect('AddToCart', $pixel->addToCartData($product, $quantity));
 
         return back()->with('status', "{$product->name} added to cart.");
     }
