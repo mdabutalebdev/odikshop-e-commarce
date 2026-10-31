@@ -9,6 +9,8 @@ use App\Models\Product;
 use App\Models\SiteSetting;
 use App\Services\Cart;
 use App\Services\PipraPayService;
+use App\Services\SteadfastService;
+use App\Services\Tracking\Pixel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,13 +19,15 @@ use Illuminate\Support\Str;
 
 class CheckoutController extends Controller
 {
-    public function index(Request $request, Cart $cart)
+    public function index(Request $request, Cart $cart, Pixel $pixel)
     {
         [$items, $subtotal, $buy, $buyQty] = $this->resolveItems($request, $cart);
 
         if ($items->isEmpty()) {
             return redirect()->route('cart.index');
         }
+
+        $pixel->initiateCheckout($items, (float) $subtotal);
 
         $settings = SiteSetting::getAll();
         $insideFee = (int) ($settings['shipping_inside_dhaka'] ?? 60);
@@ -33,7 +37,7 @@ class CheckoutController extends Controller
         return view('checkout', compact('items', 'subtotal', 'insideFee', 'outsideFee', 'buy', 'buyQty', 'bdGeo'));
     }
 
-    public function store(Request $request, Cart $cart)
+    public function store(Request $request, Cart $cart, SteadfastService $steadfast)
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -44,6 +48,9 @@ class CheckoutController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
             'delivery_zone' => ['required', 'in:inside_dhaka,outside_dhaka'],
             'payment_method' => ['required', 'in:cod,mobile_banking'],
+            'payment_channel' => ['nullable', 'required_if:payment_method,mobile_banking', 'in:bkash,nagad'],
+            'payment_sender_number' => ['nullable', 'required_if:payment_method,mobile_banking', 'string', 'max:30'],
+            'payment_txn_id' => ['nullable', 'required_if:payment_method,mobile_banking', 'string', 'max:100'],
             'buy' => ['nullable', 'integer'],
             'qty' => ['nullable', 'integer', 'min:1'],
         ], [
@@ -52,6 +59,9 @@ class CheckoutController extends Controller
             'district.required' => 'জেলা নির্বাচন করুন।',
             'thana.required' => 'থানা নির্বাচন করুন।',
             'address.required' => 'ঠিকানা দিন।',
+            'payment_channel.required_if' => 'কোন মাধ্যমে (bKash/Nagad) পাঠিয়েছেন তা নির্বাচন করুন।',
+            'payment_sender_number.required_if' => 'যে নম্বর থেকে টাকা পাঠিয়েছেন তা দিন।',
+            'payment_txn_id.required_if' => 'Transaction ID (TrxID) দিন।',
         ]);
 
         [$items, $subtotal, $buy, $buyQty] = $this->resolveItems($request, $cart);
@@ -72,7 +82,9 @@ class CheckoutController extends Controller
             : (int) ($settings['shipping_outside_dhaka'] ?? 120);
         $total = $subtotal + $shippingFee;
 
-        $order = DB::transaction(function () use ($data, $items, $subtotal, $shippingFee, $total) {
+        $isMobileBanking = $data['payment_method'] === 'mobile_banking';
+
+        $order = DB::transaction(function () use ($data, $items, $subtotal, $shippingFee, $total, $isMobileBanking) {
             $order = Order::create([
                 'order_number' => $this->generateOrderNumber(),
                 'user_id' => auth()->id(),
@@ -88,6 +100,9 @@ class CheckoutController extends Controller
                 'total' => $total,
                 'delivery_zone' => $data['delivery_zone'],
                 'payment_method' => $data['payment_method'],
+                'payment_channel' => $isMobileBanking ? ($data['payment_channel'] ?? null) : null,
+                'payment_sender_number' => $isMobileBanking ? ($data['payment_sender_number'] ?? null) : null,
+                'payment_txn_id' => $isMobileBanking ? ($data['payment_txn_id'] ?? null) : null,
                 'payment_status' => 'unpaid',
                 'status' => 'pending',
             ]);
@@ -113,6 +128,16 @@ class CheckoutController extends Controller
         // order never touched the cart.
         if (! $request->filled('buy')) {
             $cart->clear();
+        }
+
+        // Purchase is fired once, on the confirmation page this redirect lands on.
+        // Flagging it here means a later refresh of that page cannot double-count.
+        session()->put('track_purchase_'.$order->order_number, true);
+
+        if ($steadfast->autoBookEnabled()) {
+            // Booked after the response is flushed so a slow courier API never
+            // delays the customer's confirmation page.
+            app()->terminating(fn () => $steadfast->bookOrder($order));
         }
 
         return redirect()->route('checkout.confirmation', $order);
@@ -182,9 +207,13 @@ class CheckoutController extends Controller
         return response()->json(['status' => true]);
     }
 
-    public function confirmation(Order $order)
+    public function confirmation(Order $order, Pixel $pixel)
     {
         $order->load('items');
+
+        if (session()->pull('track_purchase_'.$order->order_number)) {
+            $pixel->purchase($order);
+        }
 
         return view('checkout-confirmation', compact('order'));
     }

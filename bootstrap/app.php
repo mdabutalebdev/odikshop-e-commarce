@@ -20,6 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetLocale::class,
         ]);
         
+        // Steadfast posts from its own servers, so there is no session token to
+        // send; the request is authenticated by its HMAC signature instead.
+        $middleware->validateCsrfTokens(except: [
+            'api/steadfast/webhook',
+        ]);
+
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
         ]);

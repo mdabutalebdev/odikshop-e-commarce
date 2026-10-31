@@ -2,7 +2,7 @@
 
 @php $inWishlist = in_array($product->id, $wishlistIds ?? []); @endphp
 
-<div class="group bg-white rounded-xl border border-line shadow-soft hover:shadow-card hover:border-brand/30 transition overflow-hidden flex flex-col h-full">
+<div class="group bg-white rounded-md border border-line shadow-soft hover:shadow-card hover:border-brand/30 transition overflow-hidden flex flex-col h-full">
     <div class="relative overflow-hidden">
         @if($product->discount_percent > 0)
             <span class="absolute top-2 left-2 z-10 bg-accent text-white text-[11px] font-bold px-1.5 py-0.5 rounded">-{{ $product->discount_percent }}%</span>
@@ -15,7 +15,7 @@
     </div>
 
     <div class="p-2.5 flex flex-col flex-1">
-        <h3 class="text-sm font-normal leading-snug clamp-2 min-h-[2.5rem]">
+        <h3 class="text-sm font-normal leading-snug clamp-2 min-h-[2.5em]">
             <a href="{{ route('product.show', $product) }}" class="hover:text-brand transition">{{ $product->name }}</a>
         </h3>
 
@@ -38,9 +38,28 @@
             @endif
         </div>
 
-        {{-- Order now (teal) — brand button, normal weight per design spec --}}
-        <a href="{{ route('checkout.index', ['buy' => $product->id]) }}" class="btn-brand w-full h-9 text-sm mt-2.5 !font-normal">
-            Order Now
-        </a>
+        {{-- Order Now + Add to Cart --}}
+        @php
+            $hasVariants = collect($product->attributes ?? [])
+                ->contains(fn ($g) => !empty($g['name']) && !empty(array_filter($g['options'] ?? [])));
+        @endphp
+        <div class="flex items-stretch gap-1.5 mt-2.5">
+            <a href="{{ route('checkout.index', ['buy' => $product->id]) }}" class="btn-accent flex-1 h-9 text-sm !font-normal">
+                Order Now
+            </a>
+            @if($hasVariants)
+                {{-- Variant product: pick options on the product page --}}
+                <a href="{{ route('product.show', $product) }}" aria-label="Add to Cart" title="Add to Cart"
+                   class="w-9 h-9 shrink-0 grid place-items-center rounded-md border border-brand text-brand hover:bg-brand hover:text-white transition">
+                    <i class="fa-solid fa-cart-plus text-sm"></i>
+                </a>
+            @else
+                {{-- Simple product: AJAX add (opens cart drawer via app.js) --}}
+                <button type="button" data-add-cart="{{ $product->id }}" aria-label="Add to Cart" title="Add to Cart"
+                        class="w-9 h-9 shrink-0 grid place-items-center rounded-md border border-brand text-brand hover:bg-brand hover:text-white transition">
+                    <i class="fa-solid fa-cart-plus text-sm"></i>
+                </button>
+            @endif
+        </div>
     </div>
 </div>

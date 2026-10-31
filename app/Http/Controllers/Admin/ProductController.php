@@ -173,7 +173,7 @@ class ProductController extends Controller
             'is_best_seller' => ['sometimes', 'boolean'],
             'is_new_arrival' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
-            'main_image' => ['nullable', 'image', 'max:2048'],
+            'main_image' => ['nullable', 'image', 'max:10240'],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'attributes' => ['nullable'],
             'images' => ['nullable', 'array'],

@@ -12,6 +12,7 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\ShopController;
+use App\Http\Controllers\SteadfastWebhookController;
 use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/load-more-products', [HomeController::class, 'loadMore'])->name('home.load-more');
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');
 Route::get('/search/suggest', [ShopController::class, 'suggest'])->name('search.suggest');
 Route::get('/product/{product:slug}', [ProductController::class, 'show'])->name('product.show');
@@ -37,6 +39,10 @@ Route::get('/lang/{locale}', function ($locale) {
 Route::get('/track', [OrderTrackingController::class, 'index'])->name('track');
 Route::post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
 Route::get('/page/{slug}', [PageController::class, 'show'])->name('page');
+
+// Steadfast delivery-status callback. Public by necessity; the payload is only
+// trusted after its HMAC signature is verified against the webhook token.
+Route::post('/api/steadfast/webhook', SteadfastWebhookController::class)->name('steadfast.webhook');
 
 /*
 |--------------------------------------------------------------------------
